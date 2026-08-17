@@ -25,16 +25,22 @@ plus a summary of how many SKUs/attributes are affected.
 | 🟨 Yellow | **Value Mismatch** — both Input and AI Output have data, but the values differ. Needs manual review/correction. |
 | 🟧 Amber | **Missing in AI Output** — the AI didn't generate this field at all. The Input value has been **automatically copied into the AI Output cell** so no data is lost — the team just needs to confirm it or replace it with a proper AI-generated value. |
 
-## Output report structure
+## Output report structure (3 sheets, same Excel file)
 
-- **Summary sheet** — legend, SKUs compared, attributes compared, SKUs with
-  at least one deviation, SKUs with at least one backfilled field, and a
-  full attribute-by-attribute breakdown split by **Value Mismatch** count vs
+- **Summary** — legend, SKUs compared, attributes compared, SKUs with at
+  least one deviation, SKUs with at least one backfilled field, and a full
+  attribute-by-attribute breakdown split by **Value Mismatch** count vs
   **Missing in AI Output** count, sorted by total deviations.
-- **Comparison sheet** — one row per SKU, with an `Input` / `AI Output`
-  column pair for every shared attribute. Mismatched pairs are highlighted
-  yellow; AI Output cells that were empty and got backfilled from Input are
-  highlighted amber.
+- **Input Data** — full input table (one row per SKU, all compared
+  attributes as columns). Cells that mismatch the AI Output are
+  highlighted yellow.
+- **AI Output Data** — full AI-enriched table, same layout. Cells that
+  mismatch the Input are highlighted yellow; cells the AI left blank and
+  that were auto-filled from the Input are highlighted amber.
+
+Both data sheets carry every SKU and attribute so the team can review each
+side fully on its own tab, or flip between tabs to compare a highlighted
+row side by side.
 
 SKUs present in only one of the two files are reported separately in the
 Summary sheet and excluded from the row-by-row comparison (since there's
