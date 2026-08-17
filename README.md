@@ -12,9 +12,9 @@ plus a summary of how many SKUs/attributes are affected.
    lookup sheets like "masterdata" are ignored by default but selectable).
 3. **Confirm the matching key** — auto-detected as `styleId` when present,
    otherwise pick the right ID column from the dropdown.
-4. Image/URL columns (Front Image, Back Image, BIS Certificate Image URL,
-   etc.) are **automatically excluded** from comparison — these are listed
-   in an expandable panel for transparency.
+4. **Compares every shared attribute by default** — including image/URL
+   columns. If you want to skip specific columns, use the optional
+   "Exclude specific columns" control before running.
 5. Click **Run Comparison** to see the summary inline (with a color legend),
    then **download** the highlighted `.xlsx` report.
 
@@ -35,12 +35,13 @@ plus a summary of how many SKUs/attributes are affected.
   values, unchanged, for every matched SKU. Nothing is dropped or
   reordered. Cells that mismatch the AI Output are highlighted yellow.
 - **AI Output Data** — the Output file's full original column structure
-  and values, unchanged, for every matched SKU — including workflow-only
-  columns (`Actions`, `AM`, `Detected Taxonomy`, `SKU Id`) and image/URL
-  fields, which pass through as-is with no highlight since there's nothing
-  to compare them against. Comparable attribute cells that mismatch the
-  Input are highlighted yellow; cells the AI left blank and that were
-  auto-filled from the Input are highlighted amber.
+  and values, unchanged, for every matched SKU. Workflow-only columns
+  unique to the Output file (e.g. `Actions`, `AM`, `Detected Taxonomy`,
+  `SKU Id`) pass through as-is with no highlight since there's nothing in
+  the Input to compare them against. Every attribute shared with the
+  Input — including image/URL fields — is compared: mismatches are
+  highlighted yellow, and cells the AI left blank that were auto-filled
+  from the Input are highlighted amber.
 
 Both data sheets mirror their source file's own structure exactly — the
 only difference from the original files is the highlighting layered on top
@@ -67,9 +68,9 @@ access it via a shared URL, or run it locally per-user.
 - Comparison ignores case and extra whitespace by default (toggleable) —
   e.g. `"Red "` vs `"red"` is not flagged as a deviation unless you turn
   this off.
-- Only columns present in **both** files are compared. Workflow-only
-  columns unique to one file (e.g. `Actions`, `AM`, `Detected Taxonomy` in
-  a Flow Report export) are automatically excluded since there's nothing
-  to compare them against.
+- Image/URL columns (Front Image, Back Image, BIS Certificate Image URL,
+  etc.) are **compared like any other attribute by default**. If you want
+  to skip specific columns, use the "Exclude specific columns" multiselect
+  in the app before running the comparison.
 - The key column is normalized so `39700559` (number) and `"39700559"`
   (text) are treated as the same SKU.
