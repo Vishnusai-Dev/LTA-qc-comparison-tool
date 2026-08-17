@@ -112,12 +112,16 @@ if input_file and output_file:
         index=common_cols.index(default_key) if default_key in common_cols else 0,
     )
 
-    auto_excluded = detect_image_url_columns([c for c in common_cols if c != key_col])
-    with st.expander(f"Columns auto-excluded from comparison ({len(auto_excluded)}) — image/URL fields"):
-        st.write(", ".join(auto_excluded) if auto_excluded else "None detected")
+    detected_image_url = detect_image_url_columns([c for c in common_cols if c != key_col])
+    excluded_cols = st.multiselect(
+        f"Exclude specific columns from comparison (optional — {len(detected_image_url)} image/URL "
+        "columns detected, none excluded by default; add any here you don't want compared/highlighted):",
+        options=[c for c in common_cols if c != key_col],
+        default=[],
+    )
 
     attribute_cols = common_attribute_columns(
-        list(input_df.columns), list(output_df.columns), key_col, auto_excluded
+        list(input_df.columns), list(output_df.columns), key_col, excluded_cols
     )
 
     ignore_case_whitespace = st.checkbox(
@@ -133,7 +137,7 @@ if input_file and output_file:
     if st.button("Run Comparison", type="primary"):
         with st.spinner("Comparing SKUs and building report..."):
             result = run_comparison(
-                input_df, output_df, key_col, attribute_cols, auto_excluded, ignore_case_whitespace
+                input_df, output_df, key_col, attribute_cols, excluded_cols, ignore_case_whitespace
             )
             report_bytes = build_report_workbook(result)
 
