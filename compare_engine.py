@@ -106,6 +106,10 @@ class ComparisonResult:
     skus_with_backfill: int
     attribute_summary: pd.DataFrame  # Attribute | Value Mismatch | Missing in Output | Total Deviating | % Deviating
     deviation_matrix: pd.DataFrame   # category strings, index=key, columns=attribute_cols
+    input_columns: list              # full original Input file column order
+    output_columns: list             # full original Output file column order
+    input_matched_df: pd.DataFrame   # full original Input columns, matched rows only, indexed by _key
+    output_matched_df: pd.DataFrame  # full original Output columns, matched rows only, backfilled, indexed by _key
 
 
 def run_comparison(
@@ -166,6 +170,23 @@ def run_comparison(
     merged_df = pd.DataFrame(rows)
     deviation_matrix = pd.DataFrame(deviation_rows).set_index("_key") if deviation_rows else pd.DataFrame()
 
+    # ---- Full original-structure dataframes (all columns, matched rows only) ----
+    input_columns = list(input_df.columns)
+    output_columns = list(output_df.columns)
+
+    input_matched_df = in_idx.loc[matched_keys, input_columns] if matched_keys else in_idx.loc[[], input_columns]
+    output_matched_df = out_idx.loc[matched_keys, output_columns].astype(object).copy() if matched_keys else out_idx.loc[[], output_columns].astype(object)
+
+    # Backfill only the comparable attribute columns in the Output copy; every
+    # other original Output column (workflow fields, images, etc.) is left untouched.
+    for attr in attribute_cols:
+        if attr not in output_matched_df.columns:
+            continue
+        for k in matched_keys:
+            category = deviation_matrix.loc[k, attr] if (not deviation_matrix.empty and attr in deviation_matrix.columns) else MATCH
+            if category == MISSING_OUTPUT:
+                output_matched_df.loc[k, attr] = in_idx.loc[k, attr]
+
     total_skus = len(matched_keys)
     total_attributes = len(attribute_cols)
 
@@ -213,6 +234,10 @@ def run_comparison(
         skus_with_backfill=skus_with_backfill,
         attribute_summary=attribute_summary,
         deviation_matrix=deviation_matrix,
+        input_columns=input_columns,
+        output_columns=output_columns,
+        input_matched_df=input_matched_df,
+        output_matched_df=output_matched_df,
     )
 
 
@@ -333,62 +358,59 @@ def build_report_workbook(result: ComparisonResult) -> bytes:
             ws_sum.cell(row=r, column=3, value=", ".join(result.output_only_keys[:50])).font = normal_font
             r += 1
 
-    # ---------- Sheet 2: Input Data ----------
+    # ---------- Sheet 2 & 3: Input Data / AI Output Data (full original structure) ----------
     key_col = result.key_col
-    attrs = result.attribute_cols
+    attrs = set(result.attribute_cols)
     dev_matrix = result.deviation_matrix
 
-    def write_data_sheet(sheet_name, value_suffix, highlight_fn):
+    def write_full_sheet(sheet_name, columns, matched_df, highlight_fn):
         ws = wb.create_sheet(sheet_name)
 
-        # Header row
-        ws.cell(row=1, column=1, value=result.key_col)
-        ws.cell(row=1, column=1).font = header_font
-        ws.cell(row=1, column=1).fill = header_fill
-        ws.cell(row=1, column=1).alignment = Alignment(horizontal="center", vertical="center")
-
-        for ci, attr in enumerate(attrs, start=2):
-            c = ws.cell(row=1, column=ci, value=attr)
+        for ci, col_name in enumerate(columns, start=1):
+            c = ws.cell(row=1, column=ci, value=col_name)
             c.font = header_font
             c.fill = header_fill
             c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        # Data rows
         row_i = 2
-        for _, mrow in result.merged_df.iterrows():
-            key = mrow["_key"]
-            ws.cell(row=row_i, column=1, value=mrow[key_col]).font = normal_font
-            ws.cell(row=row_i, column=1).border = border
-            for ci, attr in enumerate(attrs, start=2):
-                val = mrow.get(f"{attr} :: {value_suffix}")
+        for key in matched_df.index:
+            for ci, col_name in enumerate(columns, start=1):
+                val = matched_df.loc[key, col_name] if col_name in matched_df.columns else None
                 cell = ws.cell(row=row_i, column=ci, value=val if pd.notna(val) else "")
                 cell.font = normal_font
                 cell.border = border
                 cell.alignment = Alignment(wrap_text=True, vertical="top")
-                category = dev_matrix.loc[key, attr] if key in dev_matrix.index else MATCH
-                fill = highlight_fn(category)
-                if fill:
-                    cell.fill = fill
+
+                if col_name in attrs:
+                    category = dev_matrix.loc[key, col_name] if (not dev_matrix.empty and key in dev_matrix.index and col_name in dev_matrix.columns) else MATCH
+                    fill = highlight_fn(category)
+                    if fill:
+                        cell.fill = fill
             row_i += 1
 
-        ws.column_dimensions["A"].width = 16
-        for ci in range(2, len(attrs) + 2):
+        for ci in range(1, len(columns) + 1):
             ws.column_dimensions[get_column_letter(ci)].width = 22
         ws.freeze_panes = "B2"
         return ws
 
-    # Input sheet: highlight cells that mismatch AI Output (input value itself is fine
-    # when AI Output was simply missing, so no highlight in that case)
-    write_data_sheet(
+    # Input Data sheet: exact original Input file columns/values for matched SKUs.
+    # Highlight cells that mismatch the AI Output (a field that's simply missing in
+    # AI Output isn't the Input's problem, so no highlight there).
+    write_full_sheet(
         "Input Data",
-        "Input",
+        result.input_columns,
+        result.input_matched_df,
         lambda category: yellow_fill if category == MISMATCH else None,
     )
 
-    # AI Output sheet: highlight mismatches yellow, backfilled/missing cells amber
-    write_data_sheet(
+    # AI Output Data sheet: exact original Output file columns/values for matched
+    # SKUs (workflow columns like Actions/AM/Detected Taxonomy pass through
+    # untouched). Comparable attributes are highlighted: yellow for mismatches,
+    # amber for cells that were blank and got backfilled from Input.
+    write_full_sheet(
         "AI Output Data",
-        "AI Output",
+        result.output_columns,
+        result.output_matched_df,
         lambda category: yellow_fill if category == MISMATCH else (amber_fill if category == MISSING_OUTPUT else None),
     )
 
