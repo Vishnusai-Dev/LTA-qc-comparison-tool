@@ -333,70 +333,64 @@ def build_report_workbook(result: ComparisonResult) -> bytes:
             ws_sum.cell(row=r, column=3, value=", ".join(result.output_only_keys[:50])).font = normal_font
             r += 1
 
-    # ---------- Sheet 2: Comparison ----------
-    ws = wb.create_sheet("Comparison")
-
+    # ---------- Sheet 2: Input Data ----------
     key_col = result.key_col
     attrs = result.attribute_cols
     dev_matrix = result.deviation_matrix
 
-    ws.cell(row=1, column=1, value="SKU / Style ID")
-    ws.merge_cells(start_row=1, start_column=1, end_row=2, end_column=1)
-    ws.cell(row=1, column=1).font = header_font
-    ws.cell(row=1, column=1).fill = header_fill
-    ws.cell(row=1, column=1).alignment = Alignment(horizontal="center", vertical="center")
+    def write_data_sheet(sheet_name, value_suffix, highlight_fn):
+        ws = wb.create_sheet(sheet_name)
 
-    col = 2
-    sub_fill = PatternFill(start_color=ORANGE, end_color=ORANGE, fill_type="solid")
+        # Header row
+        ws.cell(row=1, column=1, value=result.key_col)
+        ws.cell(row=1, column=1).font = header_font
+        ws.cell(row=1, column=1).fill = header_fill
+        ws.cell(row=1, column=1).alignment = Alignment(horizontal="center", vertical="center")
 
-    for attr in attrs:
-        ws.cell(row=1, column=col, value=attr)
-        ws.merge_cells(start_row=1, start_column=col, end_row=1, end_column=col + 1)
-        top_cell = ws.cell(row=1, column=col)
-        top_cell.font = header_font
-        top_cell.fill = header_fill
-        top_cell.alignment = Alignment(horizontal="center", vertical="center")
+        for ci, attr in enumerate(attrs, start=2):
+            c = ws.cell(row=1, column=ci, value=attr)
+            c.font = header_font
+            c.fill = header_fill
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        in_cell = ws.cell(row=2, column=col, value="Input")
-        out_cell = ws.cell(row=2, column=col + 1, value="AI Output")
-        for c in (in_cell, out_cell):
-            c.font = Font(name="Calibri", size=10, bold=True, color=WHITE)
-            c.fill = sub_fill
-            c.alignment = Alignment(horizontal="center")
-        col += 2
+        # Data rows
+        row_i = 2
+        for _, mrow in result.merged_df.iterrows():
+            key = mrow["_key"]
+            ws.cell(row=row_i, column=1, value=mrow[key_col]).font = normal_font
+            ws.cell(row=row_i, column=1).border = border
+            for ci, attr in enumerate(attrs, start=2):
+                val = mrow.get(f"{attr} :: {value_suffix}")
+                cell = ws.cell(row=row_i, column=ci, value=val if pd.notna(val) else "")
+                cell.font = normal_font
+                cell.border = border
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+                category = dev_matrix.loc[key, attr] if key in dev_matrix.index else MATCH
+                fill = highlight_fn(category)
+                if fill:
+                    cell.fill = fill
+            row_i += 1
 
-    # Data rows
-    row_i = 3
-    for _, mrow in result.merged_df.iterrows():
-        key = mrow["_key"]
-        ws.cell(row=row_i, column=1, value=mrow[key_col]).font = normal_font
-        ws.cell(row=row_i, column=1).border = border
-        col = 2
-        for attr in attrs:
-            in_val = mrow.get(f"{attr} :: Input")
-            out_val = mrow.get(f"{attr} :: AI Output")
-            category = dev_matrix.loc[key, attr] if key in dev_matrix.index else MATCH
+        ws.column_dimensions["A"].width = 16
+        for ci in range(2, len(attrs) + 2):
+            ws.column_dimensions[get_column_letter(ci)].width = 22
+        ws.freeze_panes = "B2"
+        return ws
 
-            in_cell = ws.cell(row=row_i, column=col, value=in_val if pd.notna(in_val) else "")
-            out_cell = ws.cell(row=row_i, column=col + 1, value=out_val if pd.notna(out_val) else "")
-            for c in (in_cell, out_cell):
-                c.font = normal_font
-                c.border = border
-                c.alignment = Alignment(wrap_text=True, vertical="top")
+    # Input sheet: highlight cells that mismatch AI Output (input value itself is fine
+    # when AI Output was simply missing, so no highlight in that case)
+    write_data_sheet(
+        "Input Data",
+        "Input",
+        lambda category: yellow_fill if category == MISMATCH else None,
+    )
 
-            if category == MISMATCH:
-                in_cell.fill = yellow_fill
-                out_cell.fill = yellow_fill
-            elif category == MISSING_OUTPUT:
-                # Input already had the data; AI Output cell was backfilled
-                out_cell.fill = amber_fill
-            col += 2
-        row_i += 1
-
-    ws.column_dimensions["A"].width = 16
-    for i in range(2, col):
-        ws.column_dimensions[get_column_letter(i)].width = 22
-    ws.freeze_panes = "B3"
+    # AI Output sheet: highlight mismatches yellow, backfilled/missing cells amber
+    write_data_sheet(
+        "AI Output Data",
+        "AI Output",
+        lambda category: yellow_fill if category == MISMATCH else (amber_fill if category == MISSING_OUTPUT else None),
+    )
 
     buf = io.BytesIO()
     wb.save(buf)
