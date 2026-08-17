@@ -31,16 +31,21 @@ plus a summary of how many SKUs/attributes are affected.
   least one deviation, SKUs with at least one backfilled field, and a full
   attribute-by-attribute breakdown split by **Value Mismatch** count vs
   **Missing in AI Output** count, sorted by total deviations.
-- **Input Data** — full input table (one row per SKU, all compared
-  attributes as columns). Cells that mismatch the AI Output are
-  highlighted yellow.
-- **AI Output Data** — full AI-enriched table, same layout. Cells that
-  mismatch the Input are highlighted yellow; cells the AI left blank and
-  that were auto-filled from the Input are highlighted amber.
+- **Input Data** — the Input file's full original column structure and
+  values, unchanged, for every matched SKU. Nothing is dropped or
+  reordered. Cells that mismatch the AI Output are highlighted yellow.
+- **AI Output Data** — the Output file's full original column structure
+  and values, unchanged, for every matched SKU — including workflow-only
+  columns (`Actions`, `AM`, `Detected Taxonomy`, `SKU Id`) and image/URL
+  fields, which pass through as-is with no highlight since there's nothing
+  to compare them against. Comparable attribute cells that mismatch the
+  Input are highlighted yellow; cells the AI left blank and that were
+  auto-filled from the Input are highlighted amber.
 
-Both data sheets carry every SKU and attribute so the team can review each
-side fully on its own tab, or flip between tabs to compare a highlighted
-row side by side.
+Both data sheets mirror their source file's own structure exactly — the
+only difference from the original files is the highlighting layered on top
+and, in the AI Output sheet, blank cells being filled in from Input where
+the AI produced nothing.
 
 SKUs present in only one of the two files are reported separately in the
 Summary sheet and excluded from the row-by-row comparison (since there's
