@@ -80,8 +80,10 @@ Handbags, Laptop Bag** — following the team's nomenclature rules:
 
 - **DN** (Display Name) → written to `productDisplayName`
 - **LVN** (List View Name) → written to `listViewName`
-- **PD** (Product Details, bullet-style) → written to `Product Details`
-- **Size & Fit** → written to `sizeAndFitDescription`
+- **PD** (Product Details, bullet-style) → written to `Product Details` as
+  an HTML bullet list: `<p><ul><li>Label : Value</li>...</ul></p>`
+- **Size & Fit** → written to `sizeAndFitDescription` as an HTML paragraph
+  with `<br>` between fields: `<p>Height: X<br>Width: Y<br>...</p>`
 
 ### How it works
 
@@ -113,8 +115,12 @@ Fit fields, transcribed directly from the nomenclature the team supplied
 - Fields marked "(Not to be mentioned if value is NA)" in the source
   nomenclature — and in fact **every** field — is dropped from PD/Size &
   Fit if blank, rather than printed with an empty value.
-- The "Warranty provided by brand owner/manufacturer" disclaimer line is
-  always appended at the end of PD, per every category's nomenclature.
+- Most PD lines use `Label : Value`; "Number of External Pockets" and
+  "Number of Inner Pocket" use `Label - Value` (Handbags and Laptop Bag
+  only), matching the nomenclature's own punctuation.
+- The "Warranty provided by brand owner/manufacturer :" disclaimer line
+  is always appended at the end of the PD bullet list, per every
+  category's nomenclature.
 - Colour is combined as `Base- Colour1 & Colour2` (only the parts that
   have data).
 - Trolley Bag's "Pockets" line combines External + Internal pocket counts
