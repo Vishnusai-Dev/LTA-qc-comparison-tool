@@ -262,11 +262,11 @@ def build_lvn(category, g, max_length=None):
 # ---------------------------------------------------------------------------
 
 def build_pd(category, g):
-    lines = []
+    lines = []  # list of (label, separator, value)
 
-    def add(label, value):
+    def add(label, value, sep=":"):
         if not is_blank(value):
-            lines.append(f"{label}: {value}")
+            lines.append((label, sep, value))
 
     if category == "Backpacks":
         add("Colour", combine_colour(g("Base Colour"), g("Colour 1"), g("Colour 2")))
@@ -302,8 +302,8 @@ def build_pd(category, g):
         add("Type", join_nonblank([g("Surface Styling"), g("Type")]))
         add("Number of Main Compartments", g("Number of Main Compartments"))
         add("Compartment Closure", g("Compartment Closure"))
-        add("Number of External Pockets", g("Number of External Pockets"))
-        add("Number of Inner Pocket", g("Number of Inner Pocket"))
+        add("Number of External Pockets", g("Number of External Pockets"), sep="-")
+        add("Number of Inner Pocket", g("Number of Inner Pocket"), sep="-")
         add("Sling Strap", g("Sling Strap"))
         add("Addons", g("Add Ons"))
         add("Warranty", g("Warranty"))
@@ -313,15 +313,15 @@ def build_pd(category, g):
         add("Print or Pattern Type", g("Print or Pattern Type"))
         add("Number of Main Compartments", g("Number of Main Compartments"))
         add("Laptop Compartment", g("Laptop Compartment"))
-        add("Number of External Pockets", g("Number of External Pockets"))
-        add("Number of Inner Pocket", g("Number of Inner Pocket"))
+        add("Number of External Pockets", g("Number of External Pockets"), sep="-")
+        add("Number of Inner Pocket", g("Number of Inner Pocket"), sep="-")
         add("Warranty", g("Warranty"))
 
-    if any(line.startswith("Warranty:") for line in lines) or True:
-        # Disclaimer always follows, per nomenclature (shown in every category)
-        lines.append(WARRANTY_DISCLAIMER)
+    items = [f"{label} {sep} {value}" for label, sep, value in lines]
+    items.append("Warranty provided by brand owner/manufacturer :")
 
-    return "\n".join(lines)
+    li_html = "".join(f"<li>{item}</li>" for item in items)
+    return f"<p><ul>{li_html}</ul></p>"
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +363,7 @@ def build_size_fit(category, g):
         if laptop_size:
             lines.append(f'Laptop sleeve can hold "{laptop_size}" laptop')
 
-    return "\n".join(lines)
+    return f"<p>{'<br>'.join(lines)}</p>"
 
 
 def generate_all(category, row, mapping, lvn_max_length=None):
